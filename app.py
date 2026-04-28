@@ -33,6 +33,7 @@ WELL_STATUSES = sorted_opts(df_full["Well Status"])
 
 MIN_YEAR = int(df_full["Spud Year"].min()) if df_full["Spud Year"].notna().any() else 1800
 MAX_YEAR = int(df_full["Spud Year"].max()) if df_full["Spud Year"].notna().any() else 2026
+SLIDER_START = MAX_YEAR - 29
 
 app.layout = html.Div(
     [
@@ -57,17 +58,13 @@ app.layout = html.Div(
                         html.Label("Spud Year Range"),
                         dcc.RangeSlider(
                             id="filter-year",
-                            min=MIN_YEAR,
+                            min=SLIDER_START,
                             max=MAX_YEAR,
                             step=1,
-                            value=[MIN_YEAR, MAX_YEAR],
+                            value=[SLIDER_START, MAX_YEAR],
                             marks={
                                 y: str(y)
-                                for y in range(
-                                    (MIN_YEAR // 20) * 20,
-                                    MAX_YEAR + 1,
-                                    20,
-                                )
+                                for y in range(SLIDER_START, MAX_YEAR + 1, 5)
                             },
                             tooltip={"placement": "bottom", "always_visible": True},
                             className="year-slider",
@@ -319,8 +316,11 @@ def update_all(counties, type_radio, custom_types, status_radio, custom_statuses
     ]
 
     # ── Map ───────────────────────────────────────────────────────────────────
-    map_df = dff.dropna(subset=["Surface Latitude", "Surface Longitude"])
-    fig_map = px.scatter_mapbox(
+    producing_apis = prod_raw["API Well Number"].unique()
+    map_df = dff[
+        dff["API Well Number"].isin(producing_apis)
+    ].dropna(subset=["Surface Latitude", "Surface Longitude"])
+    fig_map = px.scatter_map(
         map_df,
         lat="Surface Latitude",
         lon="Surface Longitude",
@@ -335,7 +335,7 @@ def update_all(counties, type_radio, custom_types, status_radio, custom_statuses
         title="Well Locations",
     )
     fig_map.update_layout(
-        mapbox_style="open-street-map",
+        map_style="open-street-map",
         margin={"r": 0, "t": 40, "l": 0, "b": 0},
         legend_title_text="Well Type",
     )
@@ -489,10 +489,12 @@ def update_hover_chart(hover_data, counties, type_radio, custom_types, status_ra
     )
     well_prod = (
         well_prod.set_index("Year")
-        .reindex(all_years, fill_value=0)
+        .reindex(all_years)
         .reset_index()
         .rename(columns={"index": "Year"})
     )
+    for col in ["OIL (Bbls)", "GAS (Mcf)", "WATER (Bbls)"]:
+        well_prod[col] = well_prod[col].fillna(0)
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(

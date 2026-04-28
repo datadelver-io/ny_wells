@@ -5,7 +5,7 @@ import pandas as pd
 DATA_DIR = os.path.join(os.path.dirname(__file__), "src", "data")
 
 WELL_FILES_PATTERN = os.path.join(DATA_DIR, "[0-9]*.csv")
-PRODUCTION_FILE = os.path.join(DATA_DIR, "well-production.csv")
+PRODUCTION_FILES_PATTERN = os.path.join(DATA_DIR, "well_production", "*.csv")
 
 DATE_COLS = [
     "Status Date",
@@ -41,35 +41,17 @@ def _strip_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_production_raw() -> pd.DataFrame:
-    prod = pd.read_csv(PRODUCTION_FILE, dtype=str, low_memory=False)
+    files = sorted(glob.glob(PRODUCTION_FILES_PATTERN))
+    frames = [pd.read_csv(f, dtype=str, low_memory=False) for f in files]
+    prod = pd.concat(frames, ignore_index=True)
     prod = _strip_df(prod)
     prod = prod.drop(columns=[c for c in prod.columns if c == ""], errors="ignore")
+    prod.drop_duplicates(inplace=True)
     for col in PRODUCTION_NUMERIC:
         if col in prod.columns:
             prod[col] = pd.to_numeric(prod[col], errors="coerce")
     prod["Year"] = pd.to_numeric(prod["Year"], errors="coerce")
     return prod
-
-
-def load_production() -> pd.DataFrame:
-    prod = pd.read_csv(PRODUCTION_FILE, dtype=str, low_memory=False)
-    prod = _strip_df(prod)
-    prod = prod.drop(columns=[c for c in prod.columns if c == ""], errors="ignore")
-
-    for col in PRODUCTION_NUMERIC:
-        if col in prod.columns:
-            prod[col] = pd.to_numeric(prod[col], errors="coerce")
-
-    prod["Year"] = pd.to_numeric(prod["Year"], errors="coerce")
-
-    agg = prod.groupby("API Well Number", as_index=False).agg(
-        Total_Oil_Bbls=("OIL (Bbls)", "sum"),
-        Total_Gas_Mcf=("GAS (Mcf)", "sum"),
-        Total_Water_Bbls=("WATER (Bbls)", "sum"),
-        Production_Years=("Year", "nunique"),
-        Latest_Production_Year=("Year", "max"),
-    )
-    return agg
 
 
 def load_data() -> pd.DataFrame:
@@ -100,12 +82,5 @@ def load_data() -> pd.DataFrame:
         & (df["Surface Latitude"].between(40, 46))
         | df["Surface Longitude"].isna()
     ]
-
-    prod = load_production()
-    df = df.merge(prod, on="API Well Number", how="left")
-
-    prod_cols = ["Total_Oil_Bbls", "Total_Gas_Mcf", "Total_Water_Bbls",
-                 "Production_Years", "Latest_Production_Year"]
-    df[prod_cols] = df[prod_cols].fillna(0)
 
     return df
