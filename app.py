@@ -33,7 +33,7 @@ WELL_STATUSES = sorted_opts(df_full["Well Status"])
 
 MIN_YEAR = int(df_full["Spud Year"].min()) if df_full["Spud Year"].notna().any() else 1800
 MAX_YEAR = int(df_full["Spud Year"].max()) if df_full["Spud Year"].notna().any() else 2026
-SLIDER_START = MAX_YEAR - 29
+SLIDER_START = 1985
 
 app.layout = html.Div(
     [
@@ -500,21 +500,22 @@ def update_hover_chart(hover_data, counties, type_radio, custom_types, status_ra
     fig.add_trace(go.Scatter(
         x=well_prod["Year"], y=well_prod["OIL (Bbls)"],
         name="Oil (Bbls)", mode="lines+markers", line={"color": "#d97706"},
+        marker={"size": 4},
     ))
     fig.add_trace(go.Scatter(
         x=well_prod["Year"], y=well_prod["GAS (Mcf)"],
         name="Gas (Mcf)", mode="lines+markers", line={"color": "#2563eb"},
-        yaxis="y2",
+        marker={"size": 4},
     ))
     fig.add_trace(go.Scatter(
         x=well_prod["Year"], y=well_prod["WATER (Bbls)"],
         name="Water (Bbls)", mode="lines+markers", line={"color": "#06b6d4", "dash": "dot"},
+        marker={"size": 4},
     ))
     fig.update_layout(
         title=f"Production — {well_name}",
-        xaxis={"title": "Year", "dtick": 1},
-        yaxis={"title": "Oil / Water (Bbls)"},
-        yaxis2={"title": "Gas (Mcf)", "overlaying": "y", "side": "right", "showgrid": False},
+        xaxis={"title": "Year", "tickangle": -45, "nticks": 15},
+        yaxis={"title": "Production"},
         legend={"orientation": "h", "y": -0.2},
         margin={"t": 40, "b": 60},
         height=450,
